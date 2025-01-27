@@ -32,7 +32,7 @@ discordClient.once('ready', async () => {
     const guilds = discordClient.guilds.cache;
     for (const [guildId, guild] of guilds) {
         const botMember = await guild.members.fetch(discordClient.user.id);
-        if (!botMember.permissions.has('MANAGE_ROLES')) {
+        if (!botMember.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
             console.warn(`Missing permission to manage roles in guild: ${guild.name}`);
         } else {
             console.log(`Bot has permission to manage roles in guild: ${guild.name}`);
