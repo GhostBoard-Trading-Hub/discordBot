@@ -23,7 +23,7 @@ const discordClient = new Client({
 });
 
 // Replace this with your actual role ID
-const PREMIUM_ROLE_ID = '998608314583756801';
+const PREMIUM_ROLE_ID = '1332816956692365482';
 
 discordClient.once('ready', async () => {
     console.log(`Logged in as ${discordClient.user.tag}!`);
