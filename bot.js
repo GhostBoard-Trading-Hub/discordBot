@@ -17,8 +17,8 @@ const discordClient = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent, // Make sure this is included
-        GatewayIntentBits.GuildMembers,    // Required for managing roles
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMembers,
     ],
 });
 
@@ -53,17 +53,17 @@ discordClient.on(Events.InteractionCreate, async interaction => {
             const userData = result.rows[0];
 
             if (!userData) {
-                await interaction.reply('No account found with that unique code.');
+                await interaction.reply({ content: 'No account found with that unique code.', ephemeral: true });
                 return;
             }
 
             if (userData.discord_id) {
-                await interaction.reply('This account is already linked.');
+                await interaction.reply({ content: 'This account is already linked.', ephemeral: true });
                 return;
             }
 
             if (!userData.status) {
-                await interaction.reply('This account is banned/inactive. Please contact support.');
+                await interaction.reply({ content: 'This account is banned/inactive. Please contact support.', ephemeral: true });
                 return;
             }
 
@@ -75,24 +75,24 @@ discordClient.on(Events.InteractionCreate, async interaction => {
             const premiumRole = guild.roles.cache.get(PREMIUM_ROLE_ID);
 
             if (!premiumRole) {
-                await interaction.reply('Premium role does not exist.');
+                await interaction.reply({ content: 'Premium role does not exist.', ephemeral: true });
                 return;
             }
 
             if (userData.premium) {
                 // Add premium role if the user has premium status
                 await member.roles.add(premiumRole);
-                await interaction.reply('Your account has been linked and the premium role has been granted.');
+                await interaction.reply({ content: 'Your account has been linked and the premium role has been granted.', ephemeral: true });
             } else {
                 // Remove premium role if the user does not have premium status
                 if (member.roles.cache.has(premiumRole.id)) {
                     await member.roles.remove(premiumRole);
                 }
-                await interaction.reply('Your account has been linked, but you do not have premium status.');
+                await interaction.reply({ content: 'Your account has been linked, but you do not have premium status.', ephemeral: true });
             }
         } catch (error) {
             console.error('Error handling command:', error);
-            await interaction.reply('An error occurred while processing your request. Please try again later.');
+            await interaction.reply({ content: 'An error occurred while processing your request. Please try again later.', ephemeral: true });
         }
     }
 });
