@@ -22,25 +22,34 @@ const discordClient = new Client({
 });
 
 // Premium role ID
-const PREMIUM_ROLE_ID = '1332816956692365482';
+const PREMIUM_ROLE_ID = '998608314583756801';
+const allowedGuilds = ['790412544132907019'];
 
 // Connect to PostgreSQL
 pgClient.connect()
     .then(() => console.log('Connected to PostgreSQL'))
     .catch(err => console.error('Database connection error:', err));
 
-// discordClient.on('ready', async () => {
-//     const allowedGuilds = ['1325537150439129200']; // Replace with the IDs of the servers you want the bot to be in.
+discordClient.on('ready', async () => {
 
-//     const unauthorizedGuilds = discordClient.guilds.cache.filter(guild => !allowedGuilds.includes(guild.id));
+    const unauthorizedGuilds = discordClient.guilds.cache.filter(guild => !allowedGuilds.includes(guild.id));
 
-//     for (const guild of unauthorizedGuilds.values()) {
-//         console.log(`Unauthorized server detected: ${guild.name}. Leaving server...`);
-//         await guild.leave(); // Leave the unauthorized server.
-//     }
+    for (const guild of unauthorizedGuilds.values()) {
+        console.log(`Unauthorized server detected: ${guild.name}. Leaving server...`);
+        await guild.leave(); // Leave the unauthorized server.
+    }
 
-//     console.log('Bot is ready and checked for unauthorized guilds.');
-// });
+    console.log('Bot is ready and checked for unauthorized guilds.');
+});
+
+discordClient.on('guildCreate', async (guild) => {
+    if (!allowedGuilds.includes(guild.id)) {
+        console.log(`Unauthorized server detected: ${guild.name}. Leaving server...`);
+        await guild.leave();
+    } else {
+        console.log(`Bot added to an authorized server: ${guild.name}`);
+    }
+});
     
 // Helper function to check subscriptions
 async function checkSubscriptions() {
