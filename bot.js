@@ -1,5 +1,6 @@
 const { Client, GatewayIntentBits, Events, PermissionsBitField } = require('discord.js');
 const { Client: PGClient } = require('pg');
+const Stripe = require('stripe');
 require('dotenv').config();
 
 // PostgreSQL client setup
@@ -7,10 +8,8 @@ const pgClient = new PGClient({
     connectionString: process.env.DATABASE_URL,
 });
 
-// Connect to the PostgreSQL database
-pgClient.connect()
-    .then(() => console.log('Connected to PostgreSQL'))
-    .catch(err => console.error('Database connection error', err));
+// Stripe client setup
+const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
 // Discord client setup
 const discordClient = new Client({
@@ -22,13 +21,86 @@ const discordClient = new Client({
     ],
 });
 
-// Replace this with your actual role ID
+// Premium role ID
 const PREMIUM_ROLE_ID = '1332816956692365482';
+
+// Connect to PostgreSQL
+pgClient.connect()
+    .then(() => console.log('Connected to PostgreSQL'))
+    .catch(err => console.error('Database connection error:', err));
+
+// discordClient.on('ready', async () => {
+//     const allowedGuilds = ['1325537150439129200']; // Replace with the IDs of the servers you want the bot to be in.
+
+//     const unauthorizedGuilds = discordClient.guilds.cache.filter(guild => !allowedGuilds.includes(guild.id));
+
+//     for (const guild of unauthorizedGuilds.values()) {
+//         console.log(`Unauthorized server detected: ${guild.name}. Leaving server...`);
+//         await guild.leave(); // Leave the unauthorized server.
+//     }
+
+//     console.log('Bot is ready and checked for unauthorized guilds.');
+// });
+    
+// Helper function to check subscriptions
+async function checkSubscriptions() {
+    try {
+        const result = await pgClient.query('SELECT discord_id, email, premium FROM users WHERE discord_id IS NOT NULL');
+        const users = result.rows;
+
+        console.log(`Checking subscriptions for ${users.length} users...`);
+
+        for (const user of users) {
+            const { discord_id, email, premium } = user;
+
+            const customers = await stripe.customers.list({ email });
+            
+            const activeSubscriptions = await Promise.all(customers.data.map(async (customer) => {
+                const subscriptions = await stripe.subscriptions.list({ customer: customer.id });
+                // subscriptions.data.forEach(sub => {
+                //     console.log(`Customer ID: ${customer.id}, Subscription ID: ${sub.id}, Status: ${sub.status}`);
+                // });
+                // console.log(subscriptions)
+                return subscriptions.data.filter(sub => sub.status === 'active');
+            }));
+
+            const flattenedActiveSubscriptions = activeSubscriptions.flat();
+
+            const hasActiveSubscription = flattenedActiveSubscriptions.length > 0;
+
+            const guild = discordClient.guilds.cache.first();
+            if (!guild) continue;
+
+            const member = await guild.members.fetch(discord_id).catch(() => null);
+            if (!member) continue;
+
+            const premiumRole = guild.roles.cache.get(PREMIUM_ROLE_ID);
+            if (!premiumRole) {
+                console.warn('Premium role not found in the guild.');
+                continue;
+            }
+
+            if (hasActiveSubscription) {
+                if (!member.roles.cache.has(premiumRole.id)) {
+                    await member.roles.add(premiumRole);
+                    console.log(`Added premium role to ${email}`);
+                }
+            } else if (!hasActiveSubscription) {
+                if (member.roles.cache.has(premiumRole.id)) {
+                    await member.roles.remove(premiumRole);
+                    console.log(`Removed premium role from ${email}`);
+                }
+            }
+        }
+        console.log(`Check Done`);
+    } catch (error) {
+        console.error('Error checking subscriptions:', error);
+    }
+}
 
 discordClient.once('ready', async () => {
     console.log(`Logged in as ${discordClient.user.tag}!`);
 
-    // Check if the bot has permission to manage roles in each guild
     const guilds = discordClient.guilds.cache;
     for (const [guildId, guild] of guilds) {
         const botMember = await guild.members.fetch(discordClient.user.id);
@@ -38,6 +110,12 @@ discordClient.once('ready', async () => {
             console.log(`Bot has permission to manage roles in guild: ${guild.name}`);
         }
     }
+
+    // Run subscription check on startup
+    await checkSubscriptions();
+
+    // Schedule subscription checks every 15 minutes
+    setInterval(checkSubscriptions, 15 * 60 * 1000);
 });
 
 discordClient.on(Events.InteractionCreate, async interaction => {
@@ -67,7 +145,6 @@ discordClient.on(Events.InteractionCreate, async interaction => {
                 return;
             }
 
-            // Update the discord_id for the user
             await pgClient.query('UPDATE users SET discord_id = $1 WHERE discord_code = $2', [user.id, uniqueCode]);
 
             const guild = interaction.guild;
@@ -80,11 +157,9 @@ discordClient.on(Events.InteractionCreate, async interaction => {
             }
 
             if (userData.premium) {
-                // Add premium role if the user has premium status
                 await member.roles.add(premiumRole);
                 await interaction.reply({ content: 'Your account has been linked and the premium role has been granted.', ephemeral: true });
             } else {
-                // Remove premium role if the user does not have premium status
                 if (member.roles.cache.has(premiumRole.id)) {
                     await member.roles.remove(premiumRole);
                 }
@@ -97,5 +172,5 @@ discordClient.on(Events.InteractionCreate, async interaction => {
     }
 });
 
-// Log in to Discord with your bot token
+// Log in to Discord
 discordClient.login(process.env.DISCORD_TOKEN);
