@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, Events } = require('discord.js');
+const { Client, GatewayIntentBits, Events, PermissionsBitField } = require('discord.js');
 const { Client: PGClient } = require('pg');
 require('dotenv').config();
 
