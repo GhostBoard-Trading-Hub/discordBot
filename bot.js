@@ -70,7 +70,7 @@ async function checkSubscriptions() {
                 //     console.log(`Customer ID: ${customer.id}, Subscription ID: ${sub.id}, Status: ${sub.status}`);
                 // });
                 // console.log(subscriptions)
-                return subscriptions.data.filter(sub => sub.status === 'active');
+                return subscriptions.data.filter(sub => sub.status === 'active' || sub.status === 'trialing');
             }));
 
             const flattenedActiveSubscriptions = activeSubscriptions.flat();
